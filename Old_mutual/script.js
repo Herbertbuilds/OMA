@@ -72,13 +72,22 @@ function addMessage(content, isUser = false) {
         `;
     } else {
         messageDiv.innerHTML = `
-            <div class="bot-avatar">
-                <svg viewBox="0 0 24 24">
-                    <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H5C3.89 1 3 1.89 3 3V19C3 20.1 3.9 21 5 21H11V19H5V3H13V9H21ZM14 13.5C14 11.01 16.01 9 18.5 9S23 11.01 23 13.5 20.99 18 18.5 18 14 15.99 14 13.5ZM20.5 13.5C20.5 12.4 19.6 11.5 18.5 11.5S16.5 12.4 16.5 13.5 17.4 15.5 18.5 15.5 20.5 14.6 20.5 13.5Z"/>
-                </svg>
-            </div>
-            <div class="message-content">${content}</div>
-        `;
+    <div class="bot-avatar">
+        <svg viewBox="0 0 24 24">
+            <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H5C3.89 1 3 1.89 3 3V19C3 20.1 3.9 21 5 21H11V19H5V3H13V9H21ZM14 13.5C14 11.01 16.01 9 18.5 9S23 11.01 23 13.5 20.99 18 18.5 18 14 15.99 14 13.5ZM20.5 13.5C20.5 12.4 19.6 11.5 18.5 11.5S16.5 12.4 16.5 13.5 17.4 15.5 18.5 15.5 20.5 14.6 20.5 13.5Z"/>
+        </svg>
+    </div>
+
+    <div class="message-content">${content}</div>
+        <br>
+    <div class="bot-audio-icon">
+        <svg viewBox="0 0 24 24" class="sound-icon">
+            <path d="M3 10v4h4l5 5V5L7 10H3z"/>
+            <path class="wave wave1" d="M14 9a3 3 0 0 1 0 6"/>
+            <path class="wave wave2" d="M16 7a6 6 0 0 1 0 10"/>
+        </svg>
+    </div>
+`;
     }
 
     chatMessages.appendChild(messageDiv);
@@ -240,6 +249,28 @@ if (window.elementSdk) {
         mapToEditPanelValues
     });
 }
+document.addEventListener("click", (e) => {
+    const icon = e.target.closest(".bot-audio-icon");
+    if (!icon) return;
+
+    // If there's already an audio element playing, stop it
+    if (icon.audio && !icon.audio.paused) {
+        icon.audio.pause();
+        icon.audio.currentTime = 0;
+        icon.classList.remove("sound-active");
+        return;
+    }
+
+    // Otherwise, start new audio
+    const audio = new Audio("path/to/bot_audio.mp3");
+    icon.audio = audio; // store reference for stopping later
+    icon.classList.add("sound-active");
+    audio.play();
+
+    audio.onended = () => {
+        icon.classList.remove("sound-active");
+    };
+});
 
 // Initialize with default config & start chat
 onConfigChange(defaultConfig);
