@@ -147,7 +147,56 @@ messageInput.addEventListener('input', () => {
         sendButton.style.opacity = messageInput.value.trim() ? '1' : '0.7';
     }
 });
+//voice input part-------------------------------------------------
+const micButton = document.getElementById("micButton");
 
+const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+
+const recognition = new SpeechRecognition();
+recognition.lang = "en-US";
+recognition.interimResults = false;
+recognition.continuous = false;
+
+let isRecording = false;
+
+// Toggle mic
+micButton.addEventListener("click", () => {
+    if (!isRecording) {
+        // START recording
+        recognition.start();
+        isRecording = true;
+        micButton.classList.add("mic-recording");
+    } else {
+        // STOP recording
+        recognition.stop();
+        isRecording = false;
+        micButton.classList.remove("mic-recording");
+    }
+});
+
+// When voice is captured
+recognition.onresult = (event) => {
+    const speechText = event.results[0][0].transcript;
+
+    messageInput.value = speechText;
+
+    // Activate send button
+    messageInput.dispatchEvent(new Event("input"));
+};
+
+// Stop animation and reset state
+recognition.onend = () => {
+    isRecording = false;
+    micButton.classList.remove("mic-recording");
+};
+
+// In case of error
+recognition.onerror = () => {
+    isRecording = false;
+    micButton.classList.remove("mic-recording");
+};
+//--------------------end---------------------------------------------
 // Element SDK implementation
 async function onConfigChange(config) {
     const welcomeMessageEl = document.getElementById('welcome-message');
