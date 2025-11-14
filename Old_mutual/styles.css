@@ -205,9 +205,58 @@ html {
     transition: all 0.3s ease;
     box-shadow: 0 2px 8px rgba(0, 121, 77, 0.3);
 }
+.mic-button {
+    background: linear-gradient(135deg, #00794d 0%, #005a3a 100%);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 25px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 121, 77, 0.3);
+}
+
+/* Mic Button Base */
+.mic-button {
+    background: #0e7a4f; /* Old Mutual green-ish */
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: 0.2s ease;
+}
+
+/* Glow animation when recording */
+.mic-recording {
+    animation: pulse 1s infinite;
+    background: #0aa368;
+    box-shadow: 0 0 15px #0aa368;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0px rgba(10, 163, 104, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(10, 163, 104, 1);
+    }
+    100% {
+        box-shadow: 0 0 0px rgba(10, 163, 104, 0.7);
+    }
+}
 
 .send-button:hover {
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 121, 77, 0.4);
+}
+.mic-button:hover {
+    transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 121, 77, 0.4);
 }
 
