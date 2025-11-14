@@ -21,7 +21,7 @@ html {
 }
 
 .chat-header {
-    background: linear-gradient(135deg, #00794d 0%, #005a3a 100%);
+    background: linear-gradient(135deg, #00794d 0%, #00a366 100%);
     color: white;
     padding: 20px;
     text-align: center;
@@ -324,7 +324,7 @@ html {
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
     .chat-header {
         padding: 15px;
     }
