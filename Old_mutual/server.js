@@ -1,3 +1,4 @@
+// server.js
 import express from 'express';
 import cors from 'cors';
 import { GoogleGenAI } from '@google/genai';
@@ -15,10 +16,11 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-// model instructions
+// [UPDATED CODE] model instructions - Added instruction for emojis
 const systemInstruction = `You are OMA, the Old Mutual Assistant, a friendly and professional financial companion for Namibians. 
 Your purpose is to assist users with their questions about Old Mutual's services, including investments, savings, and insurance. 
-Keep your answers concise, helpful, and easy to understand.`;
+Keep your answers concise, helpful, and easy to understand.
+**Crucially, use appropriate emojis in your responses to make the conversation more engaging and colorful.**`;
 
 
 const chat = ai.chats.create({
@@ -52,5 +54,5 @@ app.post('/chat', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Proxy server running on http://localhost:${PORT}`);
-    console.log(`API Key is loaded and chat initialized with ${MODEL_NAME}.`);
+    console.log(`API Key set: ${!!API_KEY}`);
 });
