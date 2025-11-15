@@ -6,10 +6,12 @@ const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 const welcomeScreen = document.getElementById('welcomeScreen');
 const typingIndicator = document.getElementById('typingIndicator');
+const micButton = document.getElementById('micButton'); // NEW: Get the mic button element
 
 let isFirstMessage = true;
 let currentUtterance = null; 
-let isSpeaking = false;     
+let isSpeaking = false;
+let isListening = false;
 
 const defaultConfig = {
     welcome_message: "👋 Hi, I'm OMA — your Old Mutual Assistant. How can I help you today?",
@@ -32,7 +34,10 @@ function stopSpeech() {
 }
 
 function cleanTextForSpeech(text) {
-    let cleanedText = text.replace(/\*/g, '');
+    const emojiRegex = /(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g;
+    let cleanedText = text.replace(/e\.?\s*g\.?/gi, 'for example');
+    cleanedText = cleanedText.replace(emojiRegex, '');
+    cleanedText = cleanedText.replace(/\*/g, '');
     return cleanedText.replace(/\s+/g, ' ').trim();
 }
 
@@ -43,6 +48,7 @@ function speakMessage(text, iconElement) {
     }
 
     stopSpeech(); 
+    if (isListening && recognition) recognition.stop();
     
     const speechText = cleanTextForSpeech(text);
 
@@ -69,10 +75,8 @@ function speakMessage(text, iconElement) {
 
         utterance.voice = preferredVoice;
         utterance.lang = preferredVoice.lang; 
-        console.log(`TTS: Using voice: ${preferredVoice.name} (${preferredVoice.lang})`);
     } else {
         utterance.lang = 'en-US';
-        console.warn("TTS: No voices available after aggressive retry, relying on browser default."); 
     }
     
     //Wave animation when clicking sound icon
@@ -85,17 +89,60 @@ function speakMessage(text, iconElement) {
     };
 
     utterance.onerror = (event) => {
-        console.error('Speech synthesis error:', event);
+        console.error('Speech synthesis error:', event.error);
         iconElement.classList.remove('sound-active'); 
         currentUtterance = null;
         isSpeaking = false;
     };
-    
 
-    //Adjust speach, stuff like thes speed and pitch to make it sound bette
-    utterance.rate = 1.1; 
-    utterance.pitch = 1.05;
+    //Adjust speach, stuff like thes speed and pitch to make it sound better
+    utterance.rate = 1.05; 
+    utterance.pitch = 1.05; 
+    utterance.volume = 0.9; 
     synth.speak(utterance);
+}
+
+
+//Setting up speech recognition
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null; 
+
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US'; 
+
+    recognition.onstart = () => {
+        isListening = true;
+        micButton.classList.add('mic-recording');
+        messageInput.placeholder = 'Listening... Speak now.';
+    };
+
+    recognition.onend = () => {
+        isListening = false;
+        micButton.classList.remove('mic-recording');
+        messageInput.placeholder = 'Type your message here...';
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        messageInput.value = transcript;
+        sendMessage();
+    };
+
+    recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        isListening = false;
+        micButton.classList.remove('mic-recording');
+        messageInput.placeholder = 'Type your message here...';
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            alert(`Voice input failed: ${event.error}. Please try again or type your message.`);
+        }
+    };
+} else {
+    if (micButton) micButton.style.display = 'none';
+    console.warn("Web Speech API not supported in this browser.");
 }
 
 
@@ -109,7 +156,7 @@ function initializeChat() {
         addMessage("I'm not configured correctly. The chat service URL is missing.", false);
         messageInput.disabled = true;
         sendButton.disabled = true;
-        chat = false; 
+        chat = false;
         return;
     }
 }
@@ -152,14 +199,14 @@ function addMessage(message, isUser) {
     const messageContent = document.createElement('div');
     messageContent.classList.add('message-content');
     messageContent.style.wordBreak = 'break-word';
-    
-    if (!isUser) {        
+
+    if (!isUser) {
         const avatarEl = document.createElement('div');
         avatarEl.classList.add('bot-avatar');
         avatarEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2C6.9 2 2.7 6.2 2.7 11.3V12.7C2.7 17.8 6.9 22 12 22C17.1 22 21.3 17.8 21.3 12.7V11.3C21.3 6.2 17.1 2 12 2ZM12 4C16 4 19.3 7.3 19.3 11.3V12.7C19.3 16.7 16 20 12 20C8 20 4.7 16.7 4.7 12.7V11.3C4.7 7.3 8 4 12 4ZM12 8C10.7 8 9.7 7 9.7 5.7C9.7 4.4 10.7 3.3 12 3.3C13.3 3.3 14.3 4.4 14.3 5.7C14.3 7 13.3 8 12 8ZM12 16C12 14.7 10.7 13.7 9.3 13.7C8 13.7 7 14.7 7 16H9C9 15.3 9.6 14.7 10.3 14.7C11 14.7 11.6 15.3 11.6 16V16.7C10.6 16.7 9.7 17.6 9.7 18.7H14.3C14.3 17.6 13.4 16.7 12.3 16.7V16Z"/></svg>`; 
         messageWrapper.appendChild(avatarEl);
         messageContent.innerHTML = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                const audioIconEl = document.createElement('div');
+        const audioIconEl = document.createElement('div');
         audioIconEl.classList.add('bot-audio-icon');
         audioIconEl.dataset.messageText = message; 
         audioIconEl.innerHTML = `
@@ -195,15 +242,18 @@ async function sendMessage() {
 
     stopSpeech(); 
 
+    if (isListening && recognition) recognition.stop(); 
+
     if (isFirstMessage) {
         welcomeScreen.style.display = 'none';
         isFirstMessage = false;
     }
 
     addMessage(userMessage, true);
-    messageInput.value = '';
+    messageInput.value = ''; 
     messageInput.disabled = true;
     sendButton.disabled = true;
+    micButton.disabled = true;
     showTypingIndicator();
 
     try {
@@ -216,9 +266,28 @@ async function sendMessage() {
         hideTypingIndicator();
         messageInput.disabled = false;
         sendButton.disabled = false;
+        micButton.disabled = false; // [NEW CODE] Re-enable mic
         messageInput.focus();
     }
 }
+
+//Adding event listeners
+micButton.addEventListener('click', () => {
+    if (!recognition) return;
+
+    stopSpeech(); 
+    
+    if (isListening) {
+        recognition.stop();
+    } else {
+        try {
+            recognition.start();
+        } catch(e) {
+            console.error("Error starting speech recognition:", e);
+            alert("Could not start voice recognition. Please check your browser's microphone permissions, for example.");
+        }
+    }
+});
 
 
 document.addEventListener("click", (e) => {
