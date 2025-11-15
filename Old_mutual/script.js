@@ -1,98 +1,184 @@
-import { GoogleGenAI } from '@google/genai';
+const PROXY_URL = 'http://localhost:3000/chat'; 
+let chat = true; 
 
-// Configuration
-const API_KEY = "AIzaSyB5xt8H2IoMCZDP8tt6nmUV-B0MbSj1ggc";
-
-// DOM Elements
 const chatMessages = document.getElementById('chatMessages');
 const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 const welcomeScreen = document.getElementById('welcomeScreen');
 const typingIndicator = document.getElementById('typingIndicator');
 
-// App State
 let isFirstMessage = true;
-let chat;
+let currentUtterance = null; 
+let isSpeaking = false;     
 
-// Configuration object for editable content
 const defaultConfig = {
     welcome_message: "👋 Hi, I'm OMA — your Old Mutual Assistant. How can I help you today?",
     bot_name: "Old Mutual Assistant (OMA)",
     footer_text: "Powered by Team Innovation – Technovation Hackathon 2025"
 };
 
-function initializeChat() {
-    if (!API_KEY) {
-        console.error("API Key is missing.");
-        addMessage("I'm not configured correctly. My API Key is missing.", false);
-        messageInput.disabled = true;
-        sendButton.disabled = true;
+//TTS configurations
+const synth = window.speechSynthesis;
+
+function stopSpeech() {
+    if (synth && synth.speaking) {
+        synth.cancel();
+        currentUtterance = null;
+        isSpeaking = false;
+        document.querySelectorAll('.bot-audio-icon.sound-active').forEach(icon => {
+            icon.classList.remove('sound-active');
+        });
+    }
+}
+
+function cleanTextForSpeech(text) {
+    let cleanedText = text.replace(/\*/g, '');
+    return cleanedText.replace(/\s+/g, ' ').trim();
+}
+
+function speakMessage(text, iconElement) {
+    if (!synth || !text) {
+        console.warn("Speech synthesis not available or no text provided.");
         return;
     }
-    
-    try {
-        const ai = new GoogleGenAI({ apiKey: API_KEY });
-        const systemInstruction = `You are OMA, the Old Mutual Assistant, a friendly and professional financial companion from Namibians. 
-        Your purpose is to assist users with their questions about Old Mutual's services, including investments, savings, and insurance. 
-        Keep your answers short as possible, concise, helpful, and easy to understand for someone who might be new to finance and do not use *.
-        Always be polite and encouraging. Use emojis to make the conversation friendly,🏦, 📈, 🚀, 💰, 👥, 😊, 👋, 🤝.`;
 
-        chat = ai.chats.create({
-            model: 'gemini-2.5-flash',
-            config: {
-                systemInstruction: systemInstruction,
-            },
-        });
-        messageInput.disabled = false;
-        sendButton.disabled = false;
-    } catch (error) {
-        console.error("Failed to initialize Gemini Chat", error);
-        addMessage("I couldn't start up properly. There might be an issue with my configuration or the API key.", false);
+    stopSpeech(); 
+    
+    const speechText = cleanTextForSpeech(text);
+
+    const utterance = new SpeechSynthesisUtterance(speechText);
+    currentUtterance = utterance;
+    isSpeaking = true;
+    
+    let voices = synth.getVoices();
+    const startTime = Date.now();
+    const TIMEOUT_MS = 100; 
+
+    while (voices.length === 0 && (Date.now() - startTime) < TIMEOUT_MS) {
+        voices = synth.getVoices();
+    }
+
+    if (voices.length > 0) {
+        let preferredVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Zira')));
+        if (!preferredVoice) {
+            preferredVoice = voices.find(v => v.lang.startsWith('en'));
+        }
+        if (!preferredVoice) {
+            preferredVoice = voices[0];
+        }
+
+        utterance.voice = preferredVoice;
+        utterance.lang = preferredVoice.lang; 
+        console.log(`TTS: Using voice: ${preferredVoice.name} (${preferredVoice.lang})`);
+    } else {
+        utterance.lang = 'en-US';
+        console.warn("TTS: No voices available after aggressive retry, relying on browser default."); 
+    }
+    
+    //Wave animation when clicking sound icon
+    iconElement.classList.add('sound-active');
+
+    utterance.onend = () => {
+        iconElement.classList.remove('sound-active');
+        currentUtterance = null;
+        isSpeaking = false;
+    };
+
+    utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        iconElement.classList.remove('sound-active'); 
+        currentUtterance = null;
+        isSpeaking = false;
+    };
+    
+
+    //Adjust speach, stuff like thes speed and pitch to make it sound bette
+    utterance.rate = 1.1; 
+    utterance.pitch = 1.05;
+    synth.speak(utterance);
+}
+
+
+//Setting up the bot and message response
+//intiallizing the proxy
+function initializeChat() {
+    if (PROXY_URL) {
+        console.log("Chat initialized. Ready to connect to proxy.");
+    } else {
+        console.error("Proxy URL is missing.");
+        addMessage("I'm not configured correctly. The chat service URL is missing.", false);
         messageInput.disabled = true;
         sendButton.disabled = true;
+        chat = false; 
+        return;
     }
 }
 
-function hideWelcomeScreen() {
-    if (isFirstMessage) {
-        welcomeScreen.style.display = 'none';
-        isFirstMessage = false;
+//getting the bot response using the proxy
+async function getBotResponse(userMessage) {
+    if (!chat) {
+        return "I'm not ready to chat yet. Please check my configuration.";
+    }
+
+    try {
+        const response = await fetch(PROXY_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message: userMessage })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            return data.text;
+        } else {
+            console.error("Proxy error response:", data.error);
+            return data.error || "The chat service returned an error. Please try again.";
+        }
+
+    } catch (error) {
+        console.error("Network or proxy connection error:", error);
+        return "I couldn't reach the chat service. Check the server connection and ensure it is running on port 3000.";
     }
 }
 
-function addMessage(content, isUser = false) {
-    hideWelcomeScreen();
 
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+//UI funtions
+function addMessage(message, isUser) {
+    const messageWrapper = document.createElement('div');
+    messageWrapper.classList.add('message', isUser ? 'user' : 'bot');
+    const messageContent = document.createElement('div');
+    messageContent.classList.add('message-content');
+    messageContent.style.wordBreak = 'break-word';
+    
+    if (!isUser) {        
+        const avatarEl = document.createElement('div');
+        avatarEl.classList.add('bot-avatar');
+        avatarEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2C6.9 2 2.7 6.2 2.7 11.3V12.7C2.7 17.8 6.9 22 12 22C17.1 22 21.3 17.8 21.3 12.7V11.3C21.3 6.2 17.1 2 12 2ZM12 4C16 4 19.3 7.3 19.3 11.3V12.7C19.3 16.7 16 20 12 20C8 20 4.7 16.7 4.7 12.7V11.3C4.7 7.3 8 4 12 4ZM12 8C10.7 8 9.7 7 9.7 5.7C9.7 4.4 10.7 3.3 12 3.3C13.3 3.3 14.3 4.4 14.3 5.7C14.3 7 13.3 8 12 8ZM12 16C12 14.7 10.7 13.7 9.3 13.7C8 13.7 7 14.7 7 16H9C9 15.3 9.6 14.7 10.3 14.7C11 14.7 11.6 15.3 11.6 16V16.7C10.6 16.7 9.7 17.6 9.7 18.7H14.3C14.3 17.6 13.4 16.7 12.3 16.7V16Z"/></svg>`; 
+        messageWrapper.appendChild(avatarEl);
+        messageContent.innerHTML = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                const audioIconEl = document.createElement('div');
+        audioIconEl.classList.add('bot-audio-icon');
+        audioIconEl.dataset.messageText = message; 
+        audioIconEl.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M12 2C6.9 2 2.7 6.2 2.7 11.3V12.7C2.7 17.8 6.9 22 12 22C17.1 22 21.3 17.8 21.3 12.7V11.3C21.3 6.2 17.1 2 12 2ZM12 4C16 4 19.3 7.3 19.3 11.3V12.7C19.3 16.7 16 20 12 20C8 20 4.7 16.7 4.7 12.7V11.3C4.7 7.3 8 4 12 4ZM10 10V14L15 12L10 10Z"/>
+            </svg>`;
+        
+        messageContent.appendChild(audioIconEl);
+        messageWrapper.appendChild(messageContent); 
 
-    if (isUser) {
-        messageDiv.innerHTML = `
-            <div class="message-content">${content}</div>
-        `;
     } else {
-        messageDiv.innerHTML = `
-    <div class="bot-avatar">
-        <svg viewBox="0 0 24 24">
-            <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H5C3.89 1 3 1.89 3 3V19C3 20.1 3.9 21 5 21H11V19H5V3H13V9H21ZM14 13.5C14 11.01 16.01 9 18.5 9S23 11.01 23 13.5 20.99 18 18.5 18 14 15.99 14 13.5ZM20.5 13.5C20.5 12.4 19.6 11.5 18.5 11.5S16.5 12.4 16.5 13.5 17.4 15.5 18.5 15.5 20.5 14.6 20.5 13.5Z"/>
-        </svg>
-    </div>
-
-    <div class="message-content">${content}</div>
-        <br>
-    <div class="bot-audio-icon">
-        <svg viewBox="0 0 24 24" class="sound-icon">
-            <path d="M3 10v4h4l5 5V5L7 10H3z"/>
-            <path class="wave wave1" d="M14 9a3 3 0 0 1 0 6"/>
-            <path class="wave wave2" d="M16 7a6 6 0 0 1 0 10"/>
-        </svg>
-    </div>
-`;
+        messageContent.textContent = message;
+        messageWrapper.appendChild(messageContent); 
     }
 
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    chatMessages.appendChild(messageWrapper);
+    chatMessages.scrollTop = chatMessages.scrollHeight; 
 }
+
 
 function showTypingIndicator() {
     typingIndicator.style.display = 'flex';
@@ -103,37 +189,29 @@ function hideTypingIndicator() {
     typingIndicator.style.display = 'none';
 }
 
-async function getBotResponse(userMessage) {
-    if (!chat) {
-        return "I'm not ready to chat yet. Please check my configuration.";
-    }
-    try {
-        const response = await chat.sendMessage({ message: userMessage });
-        return response.text;
-    } catch (error) {
-        console.error("Error getting bot response:", error);
-        return "I'm having a bit of trouble thinking right now. This could be due to a network issue. Please try again.";
-    }
-}
-
 async function sendMessage() {
-    const message = messageInput.value.trim();
-    if (!message) return;
+    const userMessage = messageInput.value.trim();
+    if (userMessage === '') return;
 
-    addMessage(message, true);
+    stopSpeech(); 
+
+    if (isFirstMessage) {
+        welcomeScreen.style.display = 'none';
+        isFirstMessage = false;
+    }
+
+    addMessage(userMessage, true);
     messageInput.value = '';
-
     messageInput.disabled = true;
     sendButton.disabled = true;
-
     showTypingIndicator();
 
     try {
-        const botResponse = await getBotResponse(message);
+        const botResponse = await getBotResponse(userMessage);
         addMessage(botResponse, false);
     } catch (error) {
-        console.error("Failed to send message:", error);
-        addMessage("Sorry, I couldn't process that. Please try again.", false);
+        console.error('An unexpected error occurred:', error);
+        addMessage("Sorry, I ran into an unexpected issue.", false);
     } finally {
         hideTypingIndicator();
         messageInput.disabled = false;
@@ -142,82 +220,40 @@ async function sendMessage() {
     }
 }
 
-// Event listeners
-sendButton.addEventListener('click', sendMessage);
 
+document.addEventListener("click", (e) => {
+    const icon = e.target.closest(".bot-audio-icon");
+    if (!icon) return;
+    const messageText = icon.dataset.messageText;
+
+    if (isSpeaking && currentUtterance && currentUtterance.text === cleanTextForSpeech(messageText)) {
+        stopSpeech();
+    } else {
+        speakMessage(messageText, icon);
+    }
+});
+
+
+sendButton.addEventListener('click', sendMessage);
 messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         sendMessage();
     }
 });
 
-messageInput.addEventListener('input', () => {
-    if (!messageInput.disabled) {
-        sendButton.style.opacity = messageInput.value.trim() ? '1' : '0.7';
+
+function onConfigChange(config) {
+    if (welcomeScreen) {
+        const welcomeTextEl = welcomeScreen.querySelector('.welcome-text');
+        if (welcomeTextEl) {
+            welcomeTextEl.textContent = config.welcome_message || defaultConfig.welcome_message;
+        }
     }
-});
-//voice input part-------------------------------------------------
-const micButton = document.getElementById("micButton");
-
-const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
-
-const recognition = new SpeechRecognition();
-recognition.lang = "en-US";
-recognition.interimResults = false;
-recognition.continuous = false;
-
-let isRecording = false;
-
-// Toggle mic
-micButton.addEventListener("click", () => {
-    if (!isRecording) {
-        // START recording
-        recognition.start();
-        isRecording = true;
-        micButton.classList.add("mic-recording");
-    } else {
-        // STOP recording
-        recognition.stop();
-        isRecording = false;
-        micButton.classList.remove("mic-recording");
+    const headerTitleEl = document.querySelector('.chat-header h1');
+    if (headerTitleEl) {
+        headerTitleEl.textContent = config.bot_name || defaultConfig.bot_name;
     }
-});
-
-// When voice is captured
-recognition.onresult = (event) => {
-    const speechText = event.results[0][0].transcript;
-
-    messageInput.value = speechText;
-
-    // Activate send button
-    messageInput.dispatchEvent(new Event("input"));
-};
-
-// Stop animation and reset state
-recognition.onend = () => {
-    isRecording = false;
-    micButton.classList.remove("mic-recording");
-};
-
-// In case of error
-recognition.onerror = () => {
-    isRecording = false;
-    micButton.classList.remove("mic-recording");
-};
-//--------------------end---------------------------------------------
-// Element SDK implementation
-async function onConfigChange(config) {
-    const welcomeMessageEl = document.getElementById('welcome-message');
-    const botNameEl = document.getElementById('bot-name');
-    const footerTextEl = document.getElementById('footer-text');
-
-    if (welcomeMessageEl) {
-        welcomeMessageEl.textContent = config.welcome_message || defaultConfig.welcome_message;
-    }
-    if (botNameEl) {
-        botNameEl.textContent = config.bot_name || defaultConfig.bot_name;
-    }
+    const footerTextEl = document.querySelector('.footer p');
     if (footerTextEl) {
         footerTextEl.textContent = config.footer_text || defaultConfig.footer_text;
     }
@@ -240,7 +276,6 @@ function mapToEditPanelValues(config) {
     ]);
 }
 
-// Initialize Element SDK
 if (window.elementSdk) {
     window.elementSdk.init({
         defaultConfig,
@@ -249,29 +284,5 @@ if (window.elementSdk) {
         mapToEditPanelValues
     });
 }
-document.addEventListener("click", (e) => {
-    const icon = e.target.closest(".bot-audio-icon");
-    if (!icon) return;
 
-    // If there's already an audio element playing, stop it
-    if (icon.audio && !icon.audio.paused) {
-        icon.audio.pause();
-        icon.audio.currentTime = 0;
-        icon.classList.remove("sound-active");
-        return;
-    }
-
-    // Otherwise, start new audio
-    const audio = new Audio("path/to/bot_audio.mp3");
-    icon.audio = audio; // store reference for stopping later
-    icon.classList.add("sound-active");
-    audio.play();
-
-    audio.onended = () => {
-        icon.classList.remove("sound-active");
-    };
-});
-
-// Initialize with default config & start chat
-onConfigChange(defaultConfig);
-initializeChat();
+document.addEventListener('DOMContentLoaded', initializeChat);
