@@ -1,22 +1,25 @@
+
+/*Header and body styling*/
+
 body {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
     font-family: 'Poppins', sans-serif;
     background: #f8f9fa;
-    height: 100%;
+    height: 100vh;
     overflow: hidden ;
 }
 
 html {
-    height: 100%;
+    height: 100vh;
 }
 
 .chat-container {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    width: 110vw;
+    width: 100vw; 
     background: white;
 }
 
@@ -89,6 +92,12 @@ html {
     font-size: 0.95rem;
 }
 
+
+
+
+
+/*Message bubble styling*/
+
 .message {
     display: flex;
     margin-bottom: 15px;
@@ -97,73 +106,6 @@ html {
     margin-left: auto;
     margin-right: auto;
     padding: 0 20px;
-}
-/*=================================*/
-
-
-
-.bot-audio-icon {
-    margin-top: 4px;
-    cursor: pointer;
-}
-
-.sound-icon {
-    width: 22px;
-    height: 22px;
-    fill: #4CAF50;
-    transition: transform 0.2s ease;
-}
-
-.bot-audio-icon:hover .sound-icon {
-    transform: scale(1.1);
-}
-
-.wave {
-    fill: none;
-    stroke: #4CAF50;
-    stroke-width: 2;
-    stroke-linecap: round;
-    opacity: 0.6;
-}
-
-
-.wave2, .wave2{
-    animation: none;
-    opacity: 0.3;
-}
-
-/* When the parent has 'sound-active', animate the waves */
-.sound-active .wave1 {
-    animation: wavePulse1 1.5s infinite ease-in-out;
-    opacity: 1;
-}
-
-.sound-active .wave2 {
-    animation: wavePulse2 1.5s infinite ease-in-out;
-    opacity: 1;
-}
-
-@keyframes wavePulse1 {
-    0%, 100% { opacity: 0.2; }
-    50% { opacity: 1; }
-}
-@keyframes wavePulse2 {
-    0%, 100% { opacity: 0.1; }
-    50% { opacity: 0.8; }
-}
-
-/*=================================*/
-
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 .message.user {
@@ -181,6 +123,9 @@ html {
     font-size: 0.95rem;
     line-height: 1.4;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    word-break: break-word; 
+    position: relative; 
+    padding-bottom: 25px; 
 }
 
 .message.user .message-content {
@@ -215,6 +160,81 @@ html {
     height: 18px;
     fill: white;
 }
+
+
+
+
+
+
+/*Audio icon styling*/
+.bot-audio-icon {
+    position: absolute; 
+    bottom: 5px;       
+    right: 8px;        
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px;
+    border-radius: 50%;
+    background-color: rgba(0, 121, 77, 0.1); 
+    transition: background-color 0.2s ease, box-shadow 0.3s ease;
+}
+
+.bot-audio-icon:hover {
+    background-color: rgba(0, 121, 77, 0.2);
+}
+
+.bot-audio-icon svg {
+    width: 16px; 
+    height: 16px;
+    fill: #00794d; 
+    vertical-align: middle;
+}
+
+
+.bot-audio-icon.sound-active svg path {
+    fill: #005a3a; 
+}
+
+
+.bot-audio-icon.sound-active {
+    animation: pulse-green 1.5s infinite;
+}
+
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 121, 77, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 121, 77, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 121, 77, 0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+/*Footer Styling*/
 
 .chat-input {
     padding: 20px;
@@ -262,21 +282,7 @@ html {
     box-shadow: 0 2px 8px rgba(0, 121, 77, 0.3);
 }
 .mic-button {
-    background: linear-gradient(135deg, #00794d 0%, #005a3a 100%);
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 25px;
-    font-size: 0.95rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 121, 77, 0.3);
-}
-
-/* Mic Button Base */
-.mic-button {
-    background: #0e7a4f; /* Old Mutual green-ish */
+    background: #0e7a4f;
     color: white;
     border: none;
     padding: 10px;
@@ -288,7 +294,6 @@ html {
     transition: 0.2s ease;
 }
 
-/* Glow animation when recording */
 .mic-recording {
     animation: pulse 1s infinite;
     background: #0aa368;
@@ -400,6 +405,19 @@ html {
     .message-content {
         max-width: 85%;
         font-size: 0.9rem;
+        padding-bottom: 20px; 
+    }
+
+    .bot-audio-icon {
+        bottom: 3px;
+        right: 5px;
+        width: 14px;
+        height: 14px;
+    }
+
+    .bot-audio-icon svg {
+        width: 12px;
+        height: 12px;
     }
 
     .chat-input {
